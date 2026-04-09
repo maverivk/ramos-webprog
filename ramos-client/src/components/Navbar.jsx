@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 const links = [
   { label: 'Home', to: '/' },
@@ -15,6 +15,13 @@ const navLinkClassName = ({ isActive }) =>
   ].join(' ');
 
 const NavBar = () => {
+  const navigate = useNavigate();
+
+  const handleSignOut = () => {
+    // Add any logout logic here (clear tokens, user state, etc.)
+    navigate('/auth/signin');
+  };
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-zinc-900 bg-zinc-100/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -44,6 +51,14 @@ const NavBar = () => {
             </div>
           ))}
         </nav>
+
+        {/* Sign Out / Log In Button */}
+        <button
+          onClick={handleSignOut}
+          className="rounded-full border-2 border-zinc-900 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-900 transition-all duration-200 hover:bg-zinc-900 hover:text-zinc-100"
+        >
+          Sign Out
+        </button>
 
         {/* Mobile Menu Button - Simple */}
         <div className="block md:hidden">

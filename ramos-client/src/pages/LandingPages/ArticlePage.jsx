@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
-import Button from '../components/Button.jsx';
-import articles from '../assets/article-content.js';
+import Button from '../../components/Button.jsx';
+import articles from '../../assets/article-content.js';
 const ArticlePage = () => {
   const { name } = useParams();
   const article = articles.find(article => article.name === name);
