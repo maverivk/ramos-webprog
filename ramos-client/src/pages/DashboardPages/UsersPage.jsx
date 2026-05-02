@@ -22,6 +22,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import SearchIcon from '@mui/icons-material/Search';
 import { DataGrid } from '@mui/x-data-grid';
 import usersSeed from '../../assets/users.json?raw';
 
@@ -46,7 +47,6 @@ const labelize = (value) => value ? `${value.charAt(0).toUpperCase()}${value.sli
 
 const loadUsers = () => {
   try {
-    // usersSeed is already a string from the ?raw import
     const parsed = JSON.parse(usersSeed);
     return {
       users: parsed.map((user, index) => ({
@@ -111,6 +111,42 @@ const UsersPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [genderFilter, setGenderFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  // Filter and search logic
+  let filteredUsers = [...users];
+  
+  // Search functionality
+  if (searchTerm.trim()) {
+    const term = searchTerm.toLowerCase().trim();
+    filteredUsers = filteredUsers.filter(user => 
+      user.firstName.toLowerCase().includes(term) ||
+      user.lastName.toLowerCase().includes(term) ||
+      user.email.toLowerCase().includes(term) ||
+      user.username.toLowerCase().includes(term)
+    );
+  }
+  
+  // Filter by role
+  if (roleFilter) {
+    filteredUsers = filteredUsers.filter(user => user.role === roleFilter);
+  }
+  
+  // Filter by gender
+  if (genderFilter) {
+    filteredUsers = filteredUsers.filter(user => user.gender === genderFilter);
+  }
+  
+  // Filter by status
+  if (statusFilter) {
+    const isActive = statusFilter === 'active';
+    filteredUsers = filteredUsers.filter(user => user.isActive === isActive);
+  }
 
   const resetForm = () => {
     setForm({ ...blankForm });
@@ -152,10 +188,18 @@ const UsersPage = () => {
 
   const handleChange = (e) => {
     const { name, value, checked, type } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    
+    // Auto-format contact number to only digits and limit to 11 characters
+    if (name === 'contactNumber') {
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 11);
+      setForm((prev) => ({ ...prev, [name]: digitsOnly }));
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value,
+      }));
+    }
+    
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -164,24 +208,50 @@ const UsersPage = () => {
   const validate = () => {
     const newErrors = {};
     
+    // First Name validation
     if (!form.firstName.trim()) newErrors.firstName = 'First name is required';
+    
+    // Last Name validation
     if (!form.lastName.trim()) newErrors.lastName = 'Last name is required';
+    
+    // Email validation
     if (!form.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(form.email)) {
       newErrors.email = 'Email is invalid';
     }
-    if (!form.username.trim()) newErrors.username = 'Username is required';
+    
+    // Username validation - no spaces allowed
+    if (!form.username.trim()) {
+      newErrors.username = 'Username is required';
+    } else if (form.username.includes(' ')) {
+      newErrors.username = 'Username must not contain spaces';
+    }
+    
+    // Password validation - at least 8 characters (only for new users)
     if (!modal.id && !form.password) {
       newErrors.password = 'Password is required for new users';
-    } else if (!modal.id && form.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+    } else if (!modal.id && form.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
     }
+    
+    // Confirm password validation
     if (!modal.id && form.password !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
-    if (form.age && (isNaN(form.age) || form.age < 0 || form.age > 150)) {
+    
+    // Age validation - must be a number only
+    if (form.age && isNaN(form.age)) {
+      newErrors.age = 'Age must be a number';
+    } else if (form.age && (form.age < 0 || form.age > 150)) {
       newErrors.age = 'Age must be between 0 and 150';
+    }
+    
+    // Contact number validation - must be exactly 11 digits
+    if (form.contactNumber && form.contactNumber.length !== 11) {
+      newErrors.contactNumber = 'Contact number must be exactly 11 digits';
+    } else if (form.contactNumber && !/^\d+$/.test(form.contactNumber)) {
+      newErrors.contactNumber = 'Contact number must contain only digits';
     }
     
     setErrors(newErrors);
@@ -237,10 +307,70 @@ const UsersPage = () => {
       )}
 
       <Paper sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0, overflow: 'hidden' }}>
-        {users.length ? (
+        {/* Search Bar */}
+        <TextField
+          fullWidth
+          placeholder="Search by first name, last name, email, or username..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ mb: 2 }}
+        />
+
+        {/* Dropdown Filters */}
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
+          <TextField
+            select
+            label="Role"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            fullWidth
+            size="small"
+          >
+            <MenuItem value="">All Roles</MenuItem>
+            <MenuItem value="admin">Admin</MenuItem>
+            <MenuItem value="editor">Editor</MenuItem>
+            <MenuItem value="viewer">Viewer</MenuItem>
+          </TextField>
+
+          <TextField
+            select
+            label="Gender"
+            value={genderFilter}
+            onChange={(e) => setGenderFilter(e.target.value)}
+            fullWidth
+            size="small"
+          >
+            <MenuItem value="">All Genders</MenuItem>
+            <MenuItem value="male">Male</MenuItem>
+            <MenuItem value="female">Female</MenuItem>
+            <MenuItem value="other">Other</MenuItem>
+          </TextField>
+
+          <TextField
+            select
+            label="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            fullWidth
+            size="small"
+          >
+            <MenuItem value="">All Status</MenuItem>
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="inactive">Inactive</MenuItem>
+          </TextField>
+        </Stack>
+
+        {filteredUsers.length ? (
           <Box sx={{ height: { xs: 460, sm: 520 }, width: '100%', minWidth: 0 }}>
             <DataGrid
-              rows={users}
+              rows={filteredUsers}
               columns={columns}
               disableRowSelectionOnClick
               pageSizeOptions={[5, 10, 15]}
@@ -336,11 +466,14 @@ const UsersPage = () => {
               />
 
               <TextField
-                label="Phone Number"
+                label="Phone Number (11 digits)"
                 name="contactNumber"
                 value={form.contactNumber}
                 onChange={handleChange}
+                error={!!errors.contactNumber}
+                helperText={errors.contactNumber || "Enter exactly 11 digits"}
                 fullWidth
+                placeholder="09171234567"
               />
 
               <TextField
@@ -349,7 +482,7 @@ const UsersPage = () => {
                 value={form.username}
                 onChange={handleChange}
                 error={!!errors.username}
-                helperText={errors.username}
+                helperText={errors.username || "No spaces allowed"}
                 fullWidth
                 required
               />
@@ -362,7 +495,7 @@ const UsersPage = () => {
                   value={form.password}
                   onChange={handleChange}
                   error={!!errors.password}
-                  helperText={errors.password}
+                  helperText={errors.password || "Must be at least 8 characters"}
                   fullWidth
                   InputProps={{
                     endAdornment: (
