@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import Button from '../../components/Button';
+import { loginUser } from '../../services/UserService';
 
 const inputClasses = 
   'mt-2 w-full rounded-xl border-2 border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:bg-zinc-100';
@@ -9,17 +10,48 @@ const actionButtonClassName = 'w-full rounded-xl py-3 text-[11px] tracking-[0.2e
 
 const SignInPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/');
+    setLoading(true);
+    setError('');
+    
+    try {
+      const isEmail = emailOrUsername.includes('@');
+      const loginCredentials = isEmail 
+        ? { email: emailOrUsername, password }
+        : { username: emailOrUsername, password };
+      
+      const { data } = await loginUser(loginCredentials);
+      console.log('Login successful:', data);
+      
+      // BLOCK VIEWERS FROM LOGGING IN
+      if (data.type === 'viewer') {
+        setError('Viewer accounts cannot access the dashboard. Please contact admin.');
+        setLoading(false);
+        return;
+      }
+      
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('firstName', data.firstName);
+      localStorage.setItem('type', data.type);
+      localStorage.setItem('userId', data.userId);
+      
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Login failed:', err.response?.data?.message || err.message);
+      setError(err.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="flex w-full flex-col gap-6">
-      {/* Header Section */}
       <section className="border-y-2 border-zinc-200 bg-zinc-50 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <div className="mx-auto max-w-2xl">
           <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">
@@ -34,22 +66,28 @@ const SignInPage = () => {
         </div>
       </section>
 
-      {/* Form Section */}
       <section className="border-y-2 border-zinc-200 bg-zinc-50 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <div className="mx-auto max-w-2xl">
+          {error && (
+            <div className="mb-6 rounded-xl border-2 border-red-200 bg-red-50 p-4 text-sm text-red-600">
+              {error}
+            </div>
+          )}
+          
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="signin-email" className="text-sm font-semibold text-zinc-700">
-                Email Address
+                Email or Username
               </label>
               <input
                 id="signin-email"
-                type="email"
-                placeholder="Enter your email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                placeholder="Enter your email or username"
+                autoComplete="username"
+                value={emailOrUsername}
+                onChange={(e) => setEmailOrUsername(e.target.value)}
                 className={inputClasses}
+                required
               />
             </div>
 
@@ -65,6 +103,7 @@ const SignInPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={inputClasses}
+                required
               />
               <p className="mt-2 text-xs leading-5 text-zinc-500">
                 Must be a combination of minimum 8 letters, numbers, and symbols.
@@ -81,8 +120,8 @@ const SignInPage = () => {
               </button>
             </div>
 
-            <Button type="submit" variant="primary" className={actionButtonClassName}>
-              Log In
+            <Button type="submit" variant="primary" className={actionButtonClassName} disabled={loading}>
+              {loading ? 'Logging in...' : 'Log In'}
             </Button>
 
             <div className="relative">

@@ -1,9 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 
-const links = [
-  { label: 'Home', to: '/' },
-  { label: 'About', to: '/about' },
-  { label: 'Articles', to: '/articles' },
+const allLinks = [
+  { label: 'Home', to: '/', roles: ['admin', 'editor', 'viewer', 'public'] },
+  { label: 'About', to: '/about', roles: ['admin', 'editor', 'viewer', 'public'] },
+  { label: 'Articles', to: '/articles', roles: ['admin', 'editor', 'viewer', 'public'] },
+  { label: 'Dashboard', to: '/dashboard', roles: ['admin', 'editor'] },
+  { label: 'Manage Articles', to: '/dashboard/articles', roles: ['admin', 'editor'] }, // New
+  { label: 'Reports', to: '/reports', roles: ['admin', 'editor'] },
+  { label: 'Users', to: '/users', roles: ['admin'] },
 ];
 
 const navLinkClassName = ({ isActive }) =>
@@ -16,16 +20,32 @@ const navLinkClassName = ({ isActive }) =>
 
 const NavBar = () => {
   const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+  const userType = localStorage.getItem('type');
+
+  // Filter links based on user role
+  const getVisibleLinks = () => {
+    if (!token) {
+      // Not logged in - show only public pages
+      return allLinks.filter(link => link.roles.includes('public'));
+    }
+    // Logged in - show based on role
+    return allLinks.filter(link => link.roles.includes(userType));
+  };
+
+  const visibleLinks = getVisibleLinks();
 
   const handleSignOut = () => {
-    // Add any logout logic here (clear tokens, user state, etc.)
+    localStorage.removeItem('token');
+    localStorage.removeItem('firstName');
+    localStorage.removeItem('type');
+    localStorage.removeItem('userId');
     navigate('/auth/signin');
   };
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-zinc-900 bg-zinc-100/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        {/* Logo with Image */}
         <NavLink to="/" className="transition-opacity hover:opacity-80">
           <img 
             src="/STUDIO.png" 
@@ -34,9 +54,8 @@ const NavBar = () => {
           />
         </NavLink>
 
-        {/* Desktop Navigation with Visible Separator Lines */}
         <nav className="hidden items-center md:flex">
-          {links.map((link, index) => (
+          {visibleLinks.map((link, index) => (
             <div key={link.to} className="flex items-center">
               <NavLink
                 to={link.to}
@@ -45,22 +64,28 @@ const NavBar = () => {
               >
                 {link.label}
               </NavLink>
-              {index < links.length - 1 && (
+              {index < visibleLinks.length - 1 && (
                 <div className="mx-3 h-6 w-0.5 bg-zinc-400"></div>
               )}
             </div>
           ))}
         </nav>
 
-        {/* Sign Out / Log In Button */}
-        <button
-          onClick={handleSignOut}
-          className="rounded-full border-2 border-zinc-900 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-900 transition-all duration-200 hover:bg-zinc-900 hover:text-zinc-100"
-        >
-          Sign Out
-        </button>
+        {token ? (
+          <button
+            onClick={handleSignOut}
+            className="rounded-full border-2 border-zinc-900 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-900 transition-all duration-200 hover:bg-zinc-900 hover:text-zinc-100"
+          >
+            Sign Out
+          </button>
+        ) : (
+          <NavLink to="/auth/signin">
+            <button className="rounded-full border-2 border-zinc-900 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-900 transition-all duration-200 hover:bg-zinc-900 hover:text-zinc-100">
+              Sign In
+            </button>
+          </NavLink>
+        )}
 
-        {/* Mobile Menu Button - Simple */}
         <div className="block md:hidden">
           <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-zinc-900">
             <div className="space-y-1.5">

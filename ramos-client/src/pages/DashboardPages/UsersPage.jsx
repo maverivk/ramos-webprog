@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Alert,
   Box,
@@ -24,7 +24,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import SearchIcon from '@mui/icons-material/Search';
 import { DataGrid } from '@mui/x-data-grid';
-import usersSeed from '../../assets/users.json?raw';
+import { fetchUsers, createUser, updateUser, deleteUser } from '../../services/UserService';
 
 const roles = ['admin', 'editor', 'viewer'];
 const genders = ['male', 'female', 'other'];
@@ -36,7 +36,7 @@ const blankForm = {
   gender: '',
   contactNumber: '',
   email: '',
-  role: 'editor',
+  type: 'editor',
   username: '',
   password: '',
   address: '',
@@ -45,48 +45,17 @@ const blankForm = {
 
 const labelize = (value) => value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : '';
 
-const loadUsers = () => {
-  try {
-    const parsed = JSON.parse(usersSeed);
-    return {
-      users: parsed.map((user, index) => ({
-        id: index + 1,
-        firstName: String(user.firstName ?? '').trim(),
-        lastName: String(user.lastName ?? '').trim(),
-        age: String(user.age ?? '').trim(),
-        gender: String(user.gender ?? '').trim(),
-        contactNumber: String(user.contactNumber ?? '').trim(),
-        email: String(user.email ?? '').trim(),
-        role: roles.includes(String(user.role ?? '').trim().toLowerCase()) ? String(user.role ?? '').trim().toLowerCase() : 'editor',
-        username: String(user.username ?? '').trim().toLowerCase(),
-        password: String(user.password ?? ''),
-        address: String(user.address ?? '').trim(),
-        isActive: typeof user.isActive === 'boolean' ? user.isActive : true,
-      })),
-      error: null,
-    };
-  } catch (e) {
-    console.error('Error parsing users.json:', e);
-    return {
-      users: [],
-      error: 'Unable to read users from src/assets/users.json.',
-    };
-  }
-};
-
-const seed = loadUsers();
-
 const columns = [
-  { field: 'id', headerName: 'ID', width: 70 },
-  { field: 'firstName', headerName: 'First Name', width: 130, editable: true },
-  { field: 'lastName', headerName: 'Last Name', width: 130, editable: true },
-  { field: 'age', headerName: 'Age', width: 80, editable: true, type: 'number' },
-  { field: 'gender', headerName: 'Gender', width: 100, editable: true },
-  { field: 'email', headerName: 'Email', width: 200, editable: true },
-  { field: 'contactNumber', headerName: 'Phone', width: 150, editable: true },
-  { field: 'role', headerName: 'Role', width: 100, editable: true },
-  { field: 'username', headerName: 'Username', width: 130, editable: true },
-  { field: 'address', headerName: 'Address', width: 200, editable: true },
+  { field: '_id', headerName: 'ID', width: 200 },
+  { field: 'firstName', headerName: 'First Name', width: 130 },
+  { field: 'lastName', headerName: 'Last Name', width: 130 },
+  { field: 'age', headerName: 'Age', width: 80 },
+  { field: 'gender', headerName: 'Gender', width: 100 },
+  { field: 'email', headerName: 'Email', width: 200 },
+  { field: 'contactNumber', headerName: 'Phone', width: 150 },
+  { field: 'type', headerName: 'Role', width: 100 },
+  { field: 'username', headerName: 'Username', width: 130 },
+  { field: 'address', headerName: 'Address', width: 200 },
   {
     field: 'isActive',
     headerName: 'Active',
@@ -99,50 +68,103 @@ const columns = [
       />
     ),
   },
+  {
+    field: 'actions',
+    headerName: 'Actions',
+    width: 120,
+    renderCell: (params) => (
+      <Stack direction="row" spacing={1}>
+        <Button size="small" variant="outlined" onClick={() => openEditModal(params.row)}>
+          Edit
+        </Button>
+        <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(params.row._id)}>
+          Delete
+        </Button>
+      </Stack>
+    ),
+  },
 ];
 
 const UsersPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [users, setUsers] = useState(seed.users || []);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ open: false, id: null });
   const [form, setForm] = useState({ ...blankForm });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [apiError, setApiError] = useState('');
   
-  // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Filter and search logic
+  // Check if user is admin - ONLY ONCE
+  const userType = localStorage.getItem('type');
+  const isAdmin = userType === 'admin';
+
+  // Show alert only once when component loads and user is not admin
+  useEffect(() => {
+    if (!isAdmin) {
+      alert('Access Denied: Only Admin users can access the Users Management page.');
+    }
+  }, [isAdmin]);
+
+  if (!isAdmin) {
+    return (
+      <Box sx={{ width: '100%', p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Access Denied: Only Admin users can access the Users Management page.
+        </Alert>
+        <Button variant="contained" onClick={() => window.history.back()}>
+          Go Back
+        </Button>
+      </Box>
+    );
+  }
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setApiError('');
+      const { data } = await fetchUsers();
+      setUsers(data.users || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setApiError('Failed to load users. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
   let filteredUsers = [...users];
   
-  // Search functionality
   if (searchTerm.trim()) {
     const term = searchTerm.toLowerCase().trim();
     filteredUsers = filteredUsers.filter(user => 
-      user.firstName.toLowerCase().includes(term) ||
-      user.lastName.toLowerCase().includes(term) ||
-      user.email.toLowerCase().includes(term) ||
-      user.username.toLowerCase().includes(term)
+      user.firstName?.toLowerCase().includes(term) ||
+      user.lastName?.toLowerCase().includes(term) ||
+      user.email?.toLowerCase().includes(term) ||
+      user.username?.toLowerCase().includes(term)
     );
   }
   
-  // Filter by role
   if (roleFilter) {
-    filteredUsers = filteredUsers.filter(user => user.role === roleFilter);
+    filteredUsers = filteredUsers.filter(user => user.type === roleFilter);
   }
   
-  // Filter by gender
   if (genderFilter) {
     filteredUsers = filteredUsers.filter(user => user.gender === genderFilter);
   }
   
-  // Filter by status
   if (statusFilter) {
     const isActive = statusFilter === 'active';
     filteredUsers = filteredUsers.filter(user => user.isActive === isActive);
@@ -165,18 +187,22 @@ const UsersPage = () => {
         gender: user.gender || '',
         contactNumber: user.contactNumber || '',
         email: user.email || '',
-        role: user.role || 'editor',
+        type: user.type || 'editor',
         username: user.username || '',
         password: '',
         address: user.address || '',
         isActive: user.isActive !== undefined ? user.isActive : true,
       });
-      setModal({ open: true, id: user.id });
+      setModal({ open: true, id: user._id });
     } else {
       resetForm();
       setModal({ open: true, id: null });
     }
     setErrors({});
+  };
+
+  const openEditModal = (user) => {
+    openModal(user);
   };
 
   const closeModal = () => {
@@ -189,7 +215,6 @@ const UsersPage = () => {
   const handleChange = (e) => {
     const { name, value, checked, type } = e.target;
     
-    // Auto-format contact number to only digits and limit to 11 characters
     if (name === 'contactNumber') {
       const digitsOnly = value.replace(/\D/g, '').slice(0, 11);
       setForm((prev) => ({ ...prev, [name]: digitsOnly }));
@@ -208,86 +233,90 @@ const UsersPage = () => {
   const validate = () => {
     const newErrors = {};
     
-    // First Name validation
     if (!form.firstName.trim()) newErrors.firstName = 'First name is required';
-    
-    // Last Name validation
     if (!form.lastName.trim()) newErrors.lastName = 'Last name is required';
     
-    // Email validation
     if (!form.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(form.email)) {
       newErrors.email = 'Email is invalid';
     }
     
-    // Username validation - no spaces allowed
     if (!form.username.trim()) {
       newErrors.username = 'Username is required';
     } else if (form.username.includes(' ')) {
       newErrors.username = 'Username must not contain spaces';
     }
     
-    // Password validation - at least 8 characters (only for new users)
     if (!modal.id && !form.password) {
       newErrors.password = 'Password is required for new users';
     } else if (!modal.id && form.password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters';
     }
     
-    // Confirm password validation
     if (!modal.id && form.password !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
     
-    // Age validation - must be a number only
     if (form.age && isNaN(form.age)) {
       newErrors.age = 'Age must be a number';
     } else if (form.age && (form.age < 0 || form.age > 150)) {
       newErrors.age = 'Age must be between 0 and 150';
     }
     
-    // Contact number validation - must be exactly 11 digits
     if (form.contactNumber && form.contactNumber.length !== 11) {
       newErrors.contactNumber = 'Contact number must be exactly 11 digits';
-    } else if (form.contactNumber && !/^\d+$/.test(form.contactNumber)) {
-      newErrors.contactNumber = 'Contact number must contain only digits';
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
     
     const userData = {
-      id: modal.id || Math.max(0, ...users.map(u => u.id), 0) + 1,
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       age: form.age,
       gender: form.gender,
       contactNumber: form.contactNumber,
       email: form.email.trim(),
-      role: form.role,
+      type: form.type,
       username: form.username.trim().toLowerCase(),
-      password: modal.id ? (form.password || users.find(u => u.id === modal.id)?.password || '') : form.password,
       address: form.address,
       isActive: form.isActive,
     };
     
-    if (modal.id) {
-      setUsers(users.map(u => u.id === modal.id ? userData : u));
-    } else {
-      setUsers([...users, userData]);
+    if (!modal.id || form.password) {
+      userData.password = form.password;
     }
-    closeModal();
+    
+    try {
+      setApiError('');
+      if (modal.id) {
+        await updateUser(modal.id, userData);
+      } else {
+        await createUser(userData);
+      }
+      await loadUsers();
+      closeModal();
+    } catch (error) {
+      console.error('Error saving user:', error);
+      setApiError(error.response?.data?.message || 'Failed to save user. Please try again.');
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(u => u.id !== id));
+      try {
+        await deleteUser(id);
+        await loadUsers();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        setApiError(error.response?.data?.message || 'Failed to delete user. Please try again.');
+      }
     }
   };
 
@@ -300,14 +329,13 @@ const UsersPage = () => {
         </Button>
       </Box>
 
-      {seed.error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {seed.error}
+      {apiError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setApiError('')}>
+          {apiError}
         </Alert>
       )}
 
       <Paper sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0, overflow: 'hidden' }}>
-        {/* Search Bar */}
         <TextField
           fullWidth
           placeholder="Search by first name, last name, email, or username..."
@@ -323,7 +351,6 @@ const UsersPage = () => {
           sx={{ mb: 2 }}
         />
 
-        {/* Dropdown Filters */}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
           <TextField
             select
@@ -372,6 +399,8 @@ const UsersPage = () => {
             <DataGrid
               rows={filteredUsers}
               columns={columns}
+              getRowId={(row) => row._id}
+              loading={loading}
               disableRowSelectionOnClick
               pageSizeOptions={[5, 10, 15]}
               initialState={{
@@ -387,7 +416,7 @@ const UsersPage = () => {
           </Box>
         ) : (
           <Alert severity="info">
-            No users found. Use Add User to create your first record.
+            {loading ? 'Loading users...' : 'No users found. Use Add User to create your first record.'}
           </Alert>
         )}
       </Paper>
@@ -495,7 +524,7 @@ const UsersPage = () => {
                   value={form.password}
                   onChange={handleChange}
                   error={!!errors.password}
-                  helperText={errors.password || "Must be at least 8 characters"}
+                  helperText={errors.password || (modal.id ? "Leave blank to keep current password" : "Must be at least 8 characters")}
                   fullWidth
                   InputProps={{
                     endAdornment: (
@@ -531,8 +560,8 @@ const UsersPage = () => {
               <TextField
                 select
                 label="Role"
-                name="role"
-                value={form.role}
+                name="type"
+                value={form.type}
                 onChange={handleChange}
                 fullWidth
               >
@@ -563,20 +592,6 @@ const UsersPage = () => {
                 }
                 label="Active User"
               />
-
-              {modal.id && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={() => {
-                    closeModal();
-                    handleDelete(modal.id);
-                  }}
-                  sx={{ mt: 1 }}
-                >
-                  Delete User
-                </Button>
-              )}
             </Stack>
           </DialogContent>
           <DialogActions>
