@@ -14,6 +14,7 @@ import DashboardPage from './pages/DashboardPages/DashboardPage';
 import ReportsPage from './pages/DashboardPages/ReportsPage';
 import UsersPage from './pages/DashboardPages/UsersPage';
 import DashArticleListPage from './pages/DashboardPages/DashArticleListPage';
+import { ArticleProvider } from './contexts/ArticleContext'; // ← ADD THIS
 
 // Protected Route Component with alerts
 const ProtectedRoute = ({ children, allowedRoles, pageName }) => {
@@ -111,13 +112,13 @@ const routes = [
         )
       },
       {
-  path: "articles",
-  element: (
-    <ProtectedRoute allowedRoles={['admin', 'editor']}>
-      <DashArticleListPage />
-    </ProtectedRoute>
-  )
-},
+        path: "articles",
+        element: (
+          <ProtectedRoute allowedRoles={['admin', 'editor']}>
+            <DashArticleListPage />
+          </ProtectedRoute>
+        )
+      },
     ],
   },
 ];
@@ -126,9 +127,9 @@ const router = createBrowserRouter(routes);
 
 function App() {
   return (
-    <>
+    <ArticleProvider>  {/* ← WRAP EVERYTHING WITH PROVIDER */}
       <RouterProvider router={router} />
-    </>
+    </ArticleProvider>
   );
 }
 

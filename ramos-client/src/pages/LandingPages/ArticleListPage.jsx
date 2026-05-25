@@ -1,8 +1,15 @@
 import Button from '../../components/Button';
 import ArticleList from '../../components/ArticleList';
-import articles from '../../assets/article-content';
+import { useArticles } from '../../contexts/ArticleContext';
 
 const ArticleListPage = () => {
+    const { getPublishedArticles } = useArticles();
+    const publishedArticles = getPublishedArticles();
+    
+    // The publishedArticles already have the exact format ArticleList expects:
+    // { name, title, image, content[] }
+    // So no transformation needed!
+    
     return (
         <div className="flex w-full flex-col gap-6">
             <section className="border-y-2 border-zinc-900 bg-zinc-50 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -29,7 +36,8 @@ const ArticleListPage = () => {
                     <h2 className="mt-2 text-2xl font-semibold text-zinc-900">Article card</h2>
                 </div>
 
-                <ArticleList articles={articles} />
+                {/* ArticleList receives the published articles directly */}
+                <ArticleList articles={publishedArticles} />
             </section>
         </div>
     );

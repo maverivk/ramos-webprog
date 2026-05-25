@@ -103,7 +103,7 @@ const UsersPage = () => {
   const [genderFilter, setGenderFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Check if user is admin - ONLY ONCE
+  // Check if user is admin
   const userType = localStorage.getItem('type');
   const isAdmin = userType === 'admin';
 

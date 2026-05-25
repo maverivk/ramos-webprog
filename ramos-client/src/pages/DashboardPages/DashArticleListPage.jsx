@@ -24,6 +24,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import SearchIcon from '@mui/icons-material/Search';
 import { DataGrid } from '@mui/x-data-grid';
+import { useArticles } from '../../contexts/ArticleContext'; // Adjust path as needed
 
 const blankForm = {
   name: '',
@@ -33,64 +34,39 @@ const blankForm = {
   isPublished: true,
 };
 
-// Sample initial articles data
-const initialArticles = [
-  {
-    id: 1,
-    name: 'learn-react',
-    title: 'Learn React',
-    image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=300&fit=crop',
-    content: 'React is a JavaScript library for building user interfaces.',
-    isPublished: true,
-  },
-  {
-    id: 2,
-    name: 'learn-node',
-    title: 'Learn Node.js',
-    image: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400&h=300&fit=crop',
-    content: 'Node.js is a JavaScript runtime built on Chrome\'s V8 JavaScript engine.',
-    isPublished: true,
-  },
-  {
-    id: 3,
-    name: 'learn-mongodb',
-    title: 'Learn MongoDB',
-    image: 'https://images.unsplash.com/photo-1623479322729-28b25c16b011?w=400&h=300&fit=crop',
-    content: 'MongoDB is a NoSQL document database that uses JSON-like documents.',
-    isPublished: true,
-  },
-];
-
 const DashArticleListPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [articles, setArticles] = useState(initialArticles);
+  const { articles, addArticle, updateArticle, deleteArticle } = useArticles();
   const [modal, setModal] = useState({ open: false, id: null });
   const [form, setForm] = useState({ ...blankForm });
   const [errors, setErrors] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Define handleDelete before columns
   const handleDelete = (id) => {
     if (window.confirm('Are you sure you want to delete this article?')) {
-      setArticles(articles.filter(article => article.id !== id));
+      deleteArticle(id);
     }
   };
 
   const openEditModal = (article) => {
+    // Convert content array to string for editing if needed
+    const contentString = Array.isArray(article.content) 
+      ? article.content.join('\n\n') 
+      : article.content;
+    
     setForm({
       name: article.name || '',
       title: article.title || '',
       image: article.image || '',
-      content: article.content || '',
+      content: contentString,
       isPublished: article.isPublished !== undefined ? article.isPublished : true,
     });
     setModal({ open: true, id: article.id });
     setErrors({});
   };
 
-  // Define columns after handleDelete and openEditModal
   const columns = [
     { field: 'id', headerName: 'ID', width: 90 },
     { field: 'name', headerName: 'Slug', width: 150 },
@@ -203,23 +179,26 @@ const DashArticleListPage = () => {
     e.preventDefault();
     if (!validate()) return;
     
+    // Convert content string to array of paragraphs
+    const contentArray = form.content
+      .trim()
+      .split(/\n\n+/)
+      .filter(para => para.trim());
+    
     const articleData = {
       name: form.name.trim().toLowerCase().replace(/\s/g, '-'),
       title: form.title.trim(),
       image: form.image.trim(),
-      content: form.content.trim(),
+      content: contentArray,
       isPublished: form.isPublished,
     };
     
     if (modal.id) {
       // Update existing article
-      setArticles(articles.map(article => 
-        article.id === modal.id ? { ...articleData, id: modal.id } : article
-      ));
+      updateArticle(modal.id, articleData);
     } else {
       // Create new article
-      const newId = Math.max(0, ...articles.map(a => a.id), 0) + 1;
-      setArticles([...articles, { ...articleData, id: newId }]);
+      addArticle(articleData);
     }
     closeModal();
   };
@@ -343,11 +322,12 @@ const DashArticleListPage = () => {
                 value={form.content}
                 onChange={handleChange}
                 error={!!errors.content}
-                helperText={errors.content}
+                helperText={errors.content || "Separate paragraphs with blank lines"}
                 fullWidth
                 multiline
                 rows={6}
                 required
+                placeholder="First paragraph&#10;&#10;Second paragraph&#10;&#10;Third paragraph"
               />
 
               <FormControlLabel
