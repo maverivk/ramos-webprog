@@ -45,46 +45,6 @@ const blankForm = {
 
 const labelize = (value) => value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : '';
 
-const columns = [
-  { field: '_id', headerName: 'ID', width: 200 },
-  { field: 'firstName', headerName: 'First Name', width: 130 },
-  { field: 'lastName', headerName: 'Last Name', width: 130 },
-  { field: 'age', headerName: 'Age', width: 80 },
-  { field: 'gender', headerName: 'Gender', width: 100 },
-  { field: 'email', headerName: 'Email', width: 200 },
-  { field: 'contactNumber', headerName: 'Phone', width: 150 },
-  { field: 'type', headerName: 'Role', width: 100 },
-  { field: 'username', headerName: 'Username', width: 130 },
-  { field: 'address', headerName: 'Address', width: 200 },
-  {
-    field: 'isActive',
-    headerName: 'Active',
-    width: 80,
-    renderCell: (params) => (
-      <Chip
-        label={params.value ? 'Active' : 'Inactive'}
-        color={params.value ? 'success' : 'default'}
-        size="small"
-      />
-    ),
-  },
-  {
-    field: 'actions',
-    headerName: 'Actions',
-    width: 120,
-    renderCell: (params) => (
-      <Stack direction="row" spacing={1}>
-        <Button size="small" variant="outlined" onClick={() => openEditModal(params.row)}>
-          Edit
-        </Button>
-        <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(params.row._id)}>
-          Delete
-        </Button>
-      </Stack>
-    ),
-  },
-];
-
 const UsersPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -106,6 +66,74 @@ const UsersPage = () => {
   // Check if user is admin
   const userType = localStorage.getItem('type');
   const isAdmin = userType === 'admin';
+
+  // Define handleDelete first so it can be used in columns
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        await deleteUser(id);
+        await loadUsers();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        setApiError(error.response?.data?.message || 'Failed to delete user. Please try again.');
+      }
+    }
+  };
+
+  // Define openEditModal
+  const openEditModal = (user) => {
+    openModal(user);
+  };
+
+  // Define columns INSIDE the component so they have access to openEditModal and handleDelete
+  const columns = [
+    { field: '_id', headerName: 'ID', width: 200 },
+    { field: 'firstName', headerName: 'First Name', width: 130 },
+    { field: 'lastName', headerName: 'Last Name', width: 130 },
+    { field: 'age', headerName: 'Age', width: 80 },
+    { field: 'gender', headerName: 'Gender', width: 100 },
+    { field: 'email', headerName: 'Email', width: 200 },
+    { field: 'contactNumber', headerName: 'Phone', width: 150 },
+    { field: 'type', headerName: 'Role', width: 100 },
+    { field: 'username', headerName: 'Username', width: 130 },
+    { field: 'address', headerName: 'Address', width: 200 },
+    {
+      field: 'isActive',
+      headerName: 'Active',
+      width: 80,
+      renderCell: (params) => (
+        <Chip
+          label={params.value ? 'Active' : 'Inactive'}
+          color={params.value ? 'success' : 'default'}
+          size="small"
+        />
+      ),
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 120,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1}>
+          <Button 
+            size="small" 
+            variant="outlined" 
+            onClick={() => openEditModal(params.row)}
+          >
+            Edit
+          </Button>
+          <Button 
+            size="small" 
+            variant="outlined" 
+            color="error" 
+            onClick={() => handleDelete(params.row._id)}
+          >
+            Delete
+          </Button>
+        </Stack>
+      ),
+    },
+  ];
 
   // Show alert only once when component loads and user is not admin
   useEffect(() => {
@@ -199,10 +227,6 @@ const UsersPage = () => {
       setModal({ open: true, id: null });
     }
     setErrors({});
-  };
-
-  const openEditModal = (user) => {
-    openModal(user);
   };
 
   const closeModal = () => {
@@ -305,18 +329,6 @@ const UsersPage = () => {
     } catch (error) {
       console.error('Error saving user:', error);
       setApiError(error.response?.data?.message || 'Failed to save user. Please try again.');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      try {
-        await deleteUser(id);
-        await loadUsers();
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        setApiError(error.response?.data?.message || 'Failed to delete user. Please try again.');
-      }
     }
   };
 
