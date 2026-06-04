@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Button from '../../components/Button';
 import { createUser } from '../../services/UserService';
 
@@ -27,6 +27,31 @@ const SignUpPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
+  const [wakingUp, setWakingUp] = useState(false);
+  const loadingTimeoutRef = useRef(null);
+
+  // Pre-wake the backend when sign-up page loads
+  useEffect(() => {
+    const wakeBackend = async () => {
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/users?limit=1`);
+        console.log('Backend pre-warmed');
+      } catch (err) {
+        // Silently fail - this is just a wake-up call
+        console.log('Wake-up ping sent (even if error)');
+      }
+    };
+    wakeBackend();
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Auto-generate username from email (optional)
   const handleEmailChange = (e) => {
@@ -111,10 +136,16 @@ const SignUpPage = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setWakingUp(false);
     
     if (!validateForm()) return;
     
     setLoading(true);
+    
+    // Set a timeout to detect if backend is waking up (cold start)
+    loadingTimeoutRef.current = setTimeout(() => {
+      setWakingUp(true);
+    }, 3000); // Show "waking up" message after 3 seconds
     
     try {
       const userData = {
@@ -165,6 +196,8 @@ const SignUpPage = () => {
       }
     } finally {
       setLoading(false);
+      clearTimeout(loadingTimeoutRef.current);
+      setWakingUp(false);
     }
   };
 
@@ -188,6 +221,21 @@ const SignUpPage = () => {
       {/* Form Section */}
       <section className="border-y-2 border-zinc-200 bg-zinc-50 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <div className="mx-auto max-w-2xl">
+          {/* Backend waking up alert */}
+          {wakingUp && (
+            <div className="mb-6 rounded-xl border-2 border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">
+              <div className="flex items-center gap-3">
+                <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>
+                  <strong>Backend is waking up...</strong> This may take 30-60 seconds on the first signup after inactivity. Please wait.
+                </span>
+              </div>
+            </div>
+          )}
+          
           {/* Success Message */}
           {success && (
             <div className="mb-6 rounded-xl border-2 border-green-200 bg-green-50 p-4 text-sm text-green-600">
@@ -393,7 +441,7 @@ const SignUpPage = () => {
               className={actionButtonClassName}
               disabled={loading}
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? (wakingUp ? 'Waking up server...' : 'Creating Account...') : 'Create Account'}
             </Button>
 
             <div className="relative">

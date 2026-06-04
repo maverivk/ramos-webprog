@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Button from '../../components/Button';
 import { loginUser } from '../../services/UserService';
 
@@ -14,11 +14,42 @@ const SignInPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
+  const loadingTimeoutRef = useRef(null);
+
+  // Pre-wake the backend when sign-in page loads
+  useEffect(() => {
+    const wakeBackend = async () => {
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/users?limit=1`);
+        console.log('Backend pre-warmed');
+      } catch (err) {
+        // Silently fail - this is just a wake-up call
+        console.log('Wake-up ping sent (even if error)');
+      }
+    };
+    wakeBackend();
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setWakingUp(false);
+    
+    // Set a timeout to detect if backend is waking up (cold start)
+    loadingTimeoutRef.current = setTimeout(() => {
+      setWakingUp(true);
+    }, 3000); // Show "waking up" message after 3 seconds
     
     try {
       const isEmail = emailOrUsername.includes('@');
@@ -33,6 +64,7 @@ const SignInPage = () => {
       if (data.type === 'viewer') {
         setError('Viewer accounts cannot access the dashboard. Please contact admin.');
         setLoading(false);
+        clearTimeout(loadingTimeoutRef.current);
         return;
       }
       
@@ -47,6 +79,8 @@ const SignInPage = () => {
       setError(err.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
+      clearTimeout(loadingTimeoutRef.current);
+      setWakingUp(false);
     }
   };
 
@@ -68,6 +102,21 @@ const SignInPage = () => {
 
       <section className="border-y-2 border-zinc-200 bg-zinc-50 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <div className="mx-auto max-w-2xl">
+          {/* Backend waking up alert */}
+          {wakingUp && (
+            <div className="mb-6 rounded-xl border-2 border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">
+              <div className="flex items-center gap-3">
+                <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>
+                  <strong>Backend is waking up...</strong> This may take 30-60 seconds on the first login after inactivity. Please wait.
+                </span>
+              </div>
+            </div>
+          )}
+          
           {error && (
             <div className="mb-6 rounded-xl border-2 border-red-200 bg-red-50 p-4 text-sm text-red-600">
               {error}
@@ -121,7 +170,7 @@ const SignInPage = () => {
             </div>
 
             <Button type="submit" variant="primary" className={actionButtonClassName} disabled={loading}>
-              {loading ? 'Logging in...' : 'Log In'}
+              {loading ? (wakingUp ? 'Waking up server...' : 'Logging in...') : 'Log In'}
             </Button>
 
             <div className="relative">
