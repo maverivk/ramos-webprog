@@ -1,9 +1,12 @@
+// src/services/UserService.js
 import axios from 'axios';
 
-// Remove the /api from baseURL since your route already includes it
+// Get the API URL from environment variables
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Create axios instance with dynamic baseURL
 const API = axios.create({
-  baseURL: 'http://localhost:8000/api/users',  // ✅ Correct (no double /api)
-  // NOT: 'http://localhost:8000/api/api/users'
+  baseURL: `${API_URL}/api/users`,  // ✅ Now works for both local and production
 });
 
 // Add token to requests if user is logged in
