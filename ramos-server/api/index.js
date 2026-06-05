@@ -50,13 +50,13 @@ app.get('/api/health', (req, res) => {
 // Your existing user routes
 app.use('/api/users', userRoutes);
 
-// Handle 404
-app.use('*', (req, res) => {
+// Handle 404 - FIXED: Changed '*', to '/*'
+app.use('/*', (req, res) => {
   res.status(404).json({ message: `Route ${req.originalUrl} not found` });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
+// Error handler - FIXED: Changed '*', to '/*' (optional, but good practice)
+app.use('/*', (err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ message: 'Internal server error' });
 });
