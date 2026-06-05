@@ -1,9 +1,24 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const userRoutes = require('../routes/userRoutes');
 
 const app = express();
+
+// Debug: Check if routes file can be found
+console.log('Current directory:', __dirname);
+console.log('Looking for routes at:', require('path').resolve(__dirname, '../routes/userRoutes'));
+
+let userRoutes;
+try {
+  userRoutes = require('../routes/userRoutes');
+  console.log('✅ Routes loaded successfully');
+} catch (error) {
+  console.error('❌ Failed to load routes:', error.message);
+  // Create a fallback route for testing
+  userRoutes = (req, res) => {
+    res.status(500).json({ error: 'Routes not loaded', details: error.message });
+  };
+}
 
 // Cache database connection for serverless
 let isConnected = false;
@@ -15,9 +30,15 @@ const connectDB = async () => {
   }
   
   console.log('=> Creating new database connection');
+  
+  if (!process.env.MONGO_URI) {
+    console.error('❌ MONGO_URI environment variable is missing!');
+    return;
+  }
+  
   await mongoose.connect(process.env.MONGO_URI);
   isConnected = true;
-  console.log('MongoDB Connected');
+  console.log('✅ MongoDB Connected');
 };
 
 // Middleware
@@ -50,16 +71,15 @@ app.get('/api/health', (req, res) => {
 // Your existing user routes
 app.use('/api/users', userRoutes);
 
-// Handle 404 - FIXED: Changed '*', to '/*'
+// Handle 404
 app.use('/*', (req, res) => {
   res.status(404).json({ message: `Route ${req.originalUrl} not found` });
 });
 
-// Error handler - FIXED: Changed '*', to '/*' (optional, but good practice)
+// Error handler
 app.use('/*', (err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ message: 'Internal server error' });
 });
 
-// Export for Vercel (no app.listen!)
 module.exports = app;
