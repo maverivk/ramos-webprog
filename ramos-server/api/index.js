@@ -5,66 +5,64 @@ const userRoutes = require('../routes/userRoutes');
 
 const app = express();
 
-// Override any wildcard route attempts
-const originalUse = app.use.bind(app);
-app.use = function(path, ...handlers) {
-  if (path === '*') {
-    console.warn('Caught wildcard "*", converting to "/*"');
-    return originalUse('/*', ...handlers);
-  }
-  return originalUse(path, ...handlers);
-};
-
-// Cache database connection for serverless
+// Cache MongoDB connection
 let isConnected = false;
 
 const connectDB = async () => {
   if (isConnected) {
-    console.log('=> Using existing database connection');
     return;
   }
-  
-  console.log('=> Creating new database connection');
-  await mongoose.connect(process.env.MONGO_URI);
-  isConnected = true;
-  console.log('MongoDB Connected');
+
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI);
+    isConnected = true;
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error('MongoDB Connection Error:', error);
+    throw error;
+  }
 };
 
 // Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true,
-}));
-app.use(express.json());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || '*',
+    credentials: true,
+  })
+);
 
-// Connect to DB before each request
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Ensure DB connection before handling requests
 app.use(async (req, res, next) => {
   try {
     await connectDB();
     next();
   } catch (error) {
-    console.error('Database connection error:', error);
-    res.status(500).json({ message: 'Database connection failed' });
+    return res.status(500).json({
+      message: 'Database connection failed',
+      error: error.message,
+    });
   }
 });
 
-// Health check endpoint
+// Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'Backend is running on Vercel!',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
-// Your existing user routes
+// Routes
 app.use('/api/users', userRoutes);
 
-// Handle 404 - catch-all route
-app.use('/*', (req, res) => {
-  res.status(404).json({ 
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
     message: `Cannot ${req.method} ${req.originalUrl}`,
-    path: req.originalUrl
   });
 });
 
