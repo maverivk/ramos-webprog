@@ -1,4 +1,3 @@
-require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
@@ -6,31 +5,52 @@ const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
-// Database Connection
-connectDB();
-
-// CORS configuration
-const corsOptions = {
-  origin: "*", // Allow all origins (change this in production)
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
-  optionsSuccessStatus: 204,
-};
+// DO NOT connect immediately in Vercel startup
+// move DB connection to middleware-safe pattern
+let dbConnected = false;
 
 // Middleware
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: "*",
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.use("/api/users", userRoutes);
-
-// Error Handling
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: "Server Error" });
+// Lazy DB connection (IMPORTANT for Vercel)
+app.use(async (req, res, next) => {
+  try {
+    if (!dbConnected) {
+      await connectDB();
+      dbConnected = true;
+    }
+    next();
+  } catch (err) {
+    return res.status(500).json({
+      message: "Database connection failed",
+      error: err.message,
+    });
+  }
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// ✅ HEALTH CHECK (THIS FIXES YOUR 404)
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "Backend is running on Vercel!",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ROUTES
+app.use("/api/users", userRoutes);
+
+// 404
+app.use((req, res) => {
+  res.status(404).json({
+    message: `Cannot ${req.method} ${req.originalUrl}`,
+  });
+});
+
+module.exports = app;
