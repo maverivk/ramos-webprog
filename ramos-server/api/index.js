@@ -1,27 +1,39 @@
-const app = require("../index");
+const express = require("express");
+const cors = require("cors");
+const connectDB = require("../config/db");
+const userRoutes = require("../routes/userRoutes");
 
-const mongoose = require("mongoose");
+const app = express();
 
-app.get("/db-test", async (req, res) => {
+let dbConnected = false;
+
+app.use(cors({ origin: "*", credentials: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(async (req, res, next) => {
   try {
-    const state = mongoose.connection.readyState;
-
-    res.json({
-      message: "MongoDB connection status",
-      state,
-      status:
-        state === 1
-          ? "connected"
-          : state === 2
-          ? "connecting"
-          : "disconnected",
-    });
+    if (!dbConnected) {
+      await connectDB();
+      dbConnected = true;
+    }
+    next();
   } catch (err) {
-    res.status(500).json({
-      message: "DB test failed",
+    return res.status(500).json({
+      message: "Database connection failed",
       error: err.message,
     });
   }
 });
+
+// IMPORTANT: REMOVE /api prefix (this is the real fix)
+app.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "Backend is running on Vercel!",
+  });
+});
+
+app.use("/users", userRoutes);
 
 module.exports = app;
