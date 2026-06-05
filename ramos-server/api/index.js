@@ -5,6 +5,16 @@ const userRoutes = require('../routes/userRoutes');
 
 const app = express();
 
+// Override any wildcard route attempts
+const originalUse = app.use.bind(app);
+app.use = function(path, ...handlers) {
+  if (path === '*') {
+    console.warn('Caught wildcard "*", converting to "/*"');
+    return originalUse('/*', ...handlers);
+  }
+  return originalUse(path, ...handlers);
+};
+
 // Cache database connection for serverless
 let isConnected = false;
 
@@ -50,6 +60,12 @@ app.get('/api/health', (req, res) => {
 // Your existing user routes
 app.use('/api/users', userRoutes);
 
-// NO WILDCARD ROUTES - they cause errors in Express 5
+// Handle 404 - catch-all route
+app.use('/*', (req, res) => {
+  res.status(404).json({ 
+    message: `Cannot ${req.method} ${req.originalUrl}`,
+    path: req.originalUrl
+  });
+});
 
 module.exports = app;
