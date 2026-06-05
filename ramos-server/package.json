@@ -14,12 +14,12 @@
   "name": "ramos-server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "api/index.js",
   "scripts": {
     "vercel-build": "npm install",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+   "start": "node api/index.js",
+  "dev": "nodemon api/index.js"
   },
   "keywords": [],
   "author": "",
