@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -46,6 +47,7 @@ const blankForm = {
 const labelize = (value) => value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : '';
 
 const UsersPage = () => {
+  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [users, setUsers] = useState([]);
@@ -66,6 +68,22 @@ const UsersPage = () => {
   // Check if user is admin
   const userType = localStorage.getItem('type');
   const isAdmin = userType === 'admin';
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!isAdmin) {
+      alert('Access Denied: Only Admin users can access the Users Management page.');
+      const timer = setTimeout(() => {
+        navigate('/');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isAdmin, navigate]);
+
+  // If not admin, don't render anything (redirecting)
+  if (!isAdmin) {
+    return null;
+  }
 
   // Define handleDelete first so it can be used in columns
   const handleDelete = async (id) => {
@@ -134,26 +152,6 @@ const UsersPage = () => {
       ),
     },
   ];
-
-  // Show alert only once when component loads and user is not admin
-  useEffect(() => {
-    if (!isAdmin) {
-      alert('Access Denied: Only Admin users can access the Users Management page.');
-    }
-  }, [isAdmin]);
-
-  if (!isAdmin) {
-    return (
-      <Box sx={{ width: '100%', p: 3 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Access Denied: Only Admin users can access the Users Management page.
-        </Alert>
-        <Button variant="contained" onClick={() => window.history.back()}>
-          Go Back
-        </Button>
-      </Box>
-    );
-  }
 
   const loadUsers = async () => {
     try {

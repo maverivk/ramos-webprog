@@ -1,6 +1,13 @@
+import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
 
 const HomePage = () => {
+    const navigate = useNavigate();
+
+    const handleLearnMore = () => {
+        navigate('/about');
+    };
+
     return (
     <div className="flex w-full flex-col gap-6">
       {/* Hero Section */}
@@ -18,7 +25,7 @@ const HomePage = () => {
               We help designers and developers create stunning interfaces that users love.
             </p>
             <div className="mt-6">
-              <Button to="/about" variant="primary">
+              <Button onClick={handleLearnMore} variant="primary">
                 Get Started
               </Button>
             </div>
@@ -96,7 +103,9 @@ const HomePage = () => {
             <p className="mt-3 text-sm leading-6 text-zinc-600">
               Create beautiful wireframes with our drag-and-drop interface. No coding required.
             </p>
-            <Button className="mt-4" variant="primary">Learn More</Button>
+            <Button onClick={() => navigate('/about')} className="mt-4" variant="primary">
+              Learn More
+            </Button>
           </article>
 
           <article className="rounded-3xl border-2 border-zinc-900 bg-zinc-100 p-4 hover:shadow-lg transition-shadow">
@@ -111,7 +120,9 @@ const HomePage = () => {
             <p className="mt-3 text-sm leading-6 text-zinc-600">
               Work together with your team in real-time. Share feedback instantly.
             </p>
-            <Button className="mt-4" variant="primary">Learn More</Button>
+            <Button onClick={() => navigate('/about')} className="mt-4" variant="primary">
+              Learn More
+            </Button>
           </article>
 
           <article className="rounded-3xl border-2 border-zinc-900 bg-zinc-100 p-4 hover:shadow-lg transition-shadow">
@@ -126,7 +137,9 @@ const HomePage = () => {
             <p className="mt-3 text-sm leading-6 text-zinc-600">
               Track your design performance with detailed insights and recommendations.
             </p>
-            <Button className="mt-4" variant="primary">Learn More</Button>
+            <Button onClick={() => navigate('/about')} className="mt-4" variant="primary">
+              Learn More
+            </Button>
           </article>
         </div>
       </section>

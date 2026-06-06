@@ -1,13 +1,14 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 const allLinks = [
   { label: 'Home', to: '/', roles: ['admin', 'editor', 'viewer', 'public'] },
   { label: 'About', to: '/about', roles: ['admin', 'editor', 'viewer', 'public'] },
   { label: 'Articles', to: '/articles', roles: ['admin', 'editor', 'viewer', 'public'] },
   { label: 'Dashboard', to: '/dashboard', roles: ['admin', 'editor'] },
-  { label: 'Manage Articles', to: '/dashboard/articles', roles: ['admin', 'editor'] }, // New
-  { label: 'Reports', to: '/reports', roles: ['admin', 'editor'] },
-  { label: 'Users', to: '/users', roles: ['admin'] },
+  { label: 'Manage Articles', to: '/dashboard/articles', roles: ['admin', 'editor'] },
+  { label: 'Reports', to: '/dashboard/reports', roles: ['admin', 'editor'] },
+  { label: 'Users', to: '/dashboard/users', roles: ['admin'] },
 ];
 
 const navLinkClassName = ({ isActive }) =>
@@ -20,8 +21,31 @@ const navLinkClassName = ({ isActive }) =>
 
 const NavBar = () => {
   const navigate = useNavigate();
+  const [authKey, setAuthKey] = useState(Date.now());
+
+  // Get fresh data from localStorage
   const token = localStorage.getItem('token');
   const userType = localStorage.getItem('type');
+
+  // Listen for auth changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setAuthKey(Date.now());
+    };
+    
+    // Listen for custom auth change event
+    const handleAuthChange = () => {
+      setAuthKey(Date.now());
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('authChange', handleAuthChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authChange', handleAuthChange);
+    };
+  }, []);
 
   // Filter links based on user role
   const getVisibleLinks = () => {
@@ -40,6 +64,10 @@ const NavBar = () => {
     localStorage.removeItem('firstName');
     localStorage.removeItem('type');
     localStorage.removeItem('userId');
+    
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new Event('authChange'));
+    
     navigate('/auth/signin');
   };
 
